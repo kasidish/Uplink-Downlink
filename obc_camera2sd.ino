@@ -94,7 +94,7 @@ void loop(void) {
     myCAM.takePicture(CAM_IMAGE_MODE_WQXGA2,CAM_IMAGE_PIX_FMT_JPG);
     while (myCAM.getReceivedLength())
     {
-        imageData = imageDataNext;
+        imageData = imageDataNext;a
         imageDataNext = myCAM.readByte();
         if (headFlag == 1)
         {

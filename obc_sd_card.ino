@@ -1,67 +1,94 @@
-#include <SPI.h>
-#include "SdFat.h"
+  #include <SPI.h>
+  #include "SdFat.h"
 
-// Note: SD_SPI, SD_CS, and SD_CONFIG are defined in mission_integrated.ino
-// sd and nextImageID are also shared globals.
+  // These 2 lines must be defined as it is used in internal functions
+  #define SPI_DRIVER_SELECT 2
+  #define ENABLE_DEDICATED_SPI 1
 
-bool storage_init() {
-  Serial.print(F("[SD] Initializing SD Card ... "));
-  if (!sd.begin(SD_CONFIG)) {
-    Serial.println(F("Failed!"));
-    return false;
-  }
-  Serial.println(F("Success."));
-  storage_load_config();
-  return true;
-}
+  SPIClass SD_SPI(PC12, PC11, PC10);
+  const int chipSelect = PC9;
 
-void storage_load_config() {
-  if (sd.exists("config.txt")) {
-    FsFile configFile = sd.open("config.txt", O_READ);
-    if (configFile) {
-      nextImageID = configFile.parseInt();
-      configFile.close();
-      Serial.print(F("[SD] Loaded nextImageID: ")); Serial.println(nextImageID);
+  #define SD_CONFIG SdSpiConfig(chipSelect, DEDICATED_SPI, SD_SCK_MHZ(8), &SD_SPI)
+
+  SdFs sd;
+  FsFile file;
+  csd_t csd;
+
+
+  void setup() {
+    Serial.setTx(PD8);
+    Serial.setRx(PD9);
+    Serial.begin(115200);
+
+    Serial.print("\nInitializing SD card...");
+
+    // we'll use the initialization code from the utility libraries
+    // since we're just testing if the card is working!
+    if (!sd.begin(SD_CONFIG)) {
+      Serial.println("initialization failed. Things to check:");
+      Serial.println("* is a card inserted?");
+      Serial.println("* is your wiring correct?");
+      Serial.println("* did you change the chipSelect pin to match your shield or module?");
+      Serial.println("Note: press reset button on the board and reopen this Serial Monitor after fixing your issue!");
+      while (1)
+        ;
+    } else {
+      Serial.println("Wiring is correct and a card is present.");
     }
+
+    // print the type of card
+    Serial.println();
+    Serial.print("Card type:   ");
+    switch (sd.card()->type()) {
+      case SD_CARD_TYPE_SD1:
+        Serial.println("SD1");
+        break;
+      case SD_CARD_TYPE_SD2:
+        Serial.println("SD2");
+        break;
+      case SD_CARD_TYPE_SDHC:
+        Serial.println("SDHC");
+        break;
+      default:
+        Serial.println("Unknown");
+    }
+
+    // init the volume of the card
+    if (!sd.volumeBegin()) {
+      Serial.print("\nvolumeBegin failed. Is the card formatted?\n");
+      return;
+    }
+
+    // read card volume information
+    if (!sd.card()->readCSD(&csd)) {
+      Serial.print("SD Read Info failed\n");
+      return;
+    }
+
+    uint32_t eraseSize = csd.eraseSize();
+    Serial.print("Card Size :   ");
+    Serial.print((int32_t)(0.000512 * csd.capacity()));
+    Serial.println(" MB");
+
+    if (!file.open("Hello.txt", O_RDWR | O_CREAT)) {
+      Serial.println("Open File failed");
+    }
+    Serial.println("Writing to the file...");
+    file.println("Hello From NBSPACE");
+    file.rewind();
+
+    Serial.println("Reading from the file...");
+    Serial.println("--------------------------------------------------------");
+    while (file.available()) {
+      Serial.write(file.read());
+    }
+    Serial.println("--------------------------------------------------------");
+
+    file.close();
+    sd.end();
+
+    Serial.println(F("Done."));
   }
-}
 
-void storage_save_config() {
-  FsFile configFile = sd.open("config.txt", O_WRITE | O_CREAT | O_TRUNC);
-  if (configFile) {
-    configFile.print(nextImageID);
-    configFile.close();
+  void loop(void) {
   }
-}
-
-bool storage_save_image_data(uint16_t id, Arducam_Mega& cam) {
-  char filename[15];
-  sprintf(filename, "IMG_%d.JPG", id);
-  
-  FsFile imgFile = sd.open(filename, O_WRITE | O_CREAT);
-  if (!imgFile) {
-    Serial.println(F("[SD] File Open Failed!"));
-    return false;
-  }
-
-  uint8_t buffer[120]; // Matching our data chunk size for consistency
-  while (cam.getReceivedLength() > 0) {
-    int len = cam.readBuff(buffer, 120);
-    imgFile.write(buffer, len);
-  }
-  imgFile.close();
-  Serial.print(F("[SD] Saved: ")); Serial.println(filename);
-  return true;
-}
-
-bool storage_exists(uint16_t id) {
-  char filename[15];
-  sprintf(filename, "IMG_%d.JPG", id);
-  return sd.exists(filename);
-}
-
-FsFile storage_open_image(uint16_t id) {
-  char filename[15];
-  sprintf(filename, "IMG_%d.JPG", id);
-  return sd.open(filename, O_READ);
-}
