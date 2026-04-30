@@ -1,4 +1,4 @@
-# CubeSat Mission Design: Store-and-Forward Image System (v2.0)
+# CubeSat Mission Design: Store-and-Forward Image System (v1.0)
 
 ## 1. System Overview
 The mission involves an integrated system for satellite communication (Uplink/Downlink), image capture (Arducam Mega), and persistent storage (SD Card). The firmware is designed to be modular, using the original project files as callable modules within the Arduino IDE.
