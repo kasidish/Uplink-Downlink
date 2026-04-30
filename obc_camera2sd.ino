@@ -1,13 +1,19 @@
 #include "Arducam_Mega.h"
 #include "SdFat.h"
+#include "config.h"
 
-// --- Camera Module (Store-and-Forward System) ---
+// --- Camera Module (HAL) ---
 
-// Globals shared across tabs
-// myCAM and sd are in mission_integrated.ino
+// Module owns its hardware resources
+Arducam_Mega myCAM(CAM_CS);
 
 bool camera_init() {
-  Serial.print(F("[CAM] Initializing Arducam ... "));
+  Serial.print(F("[HAL] Initializing Camera ... "));
+  SPI.setMISO(CAM_MISO);
+  SPI.setMOSI(CAM_MOSI);
+  SPI.setSCLK(CAM_SCLK);
+  SPI.begin();
+  
   myCAM.begin();
   Serial.println(F("Success."));
   return true;
@@ -17,10 +23,11 @@ bool camera_capture_to_sd(uint16_t id) {
   char filename[15];
   sprintf(filename, "IMG_%d.JPG", id);
   
-  Serial.printf("[CAM] Capturing to %s\r\n", filename);
+  Serial.printf("[HAL] Capturing to %s\r\n", filename);
   myCAM.takePicture(CAM_IMAGE_MODE_VGA, CAM_IMAGE_PIX_FMT_JPG);
   
   FsFile imgFile;
+  extern SdFs sd; // Use the global SD object from storage module
   if (!imgFile.open(filename, O_WRONLY | O_CREAT | O_TRUNC)) {
     Serial.println(F("[SD] File open failed"));
     return false;
@@ -44,20 +51,18 @@ bool camera_capture_to_sd(uint16_t id) {
       }
     }
     
-    // Start of Image
     if (imageData == 0xff && imageDataNext == 0xd8) {
       headFlag = 1;
       imageBuff[i++] = imageData;
       imageBuff[i++] = imageDataNext;
     }
     
-    // End of Image
     if (imageData == 0xff && imageDataNext == 0xd9) {
       headFlag = 0;
       imgFile.write(imageBuff, i);
       i = 0;
       imgFile.close();
-      Serial.println(F("[CAM] Image save succeed"));
+      Serial.println(F("[HAL] Image saved."));
       return true;
     }
   }

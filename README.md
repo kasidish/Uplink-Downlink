@@ -34,8 +34,18 @@ Images are broken into **120-byte data chunks** to ensure high reliability and e
 4. Once all packets are received (`Packet Index == Total Packets`), save the buffer as a `.jpg` file.
 5. Send acknowledgement or request missing packets if necessary (future enhancement).
 
-## 6. Project Structure
-- `mission_integrated.ino`: Main controller and mission state machine.
-- `commu_tx_rx.ino`: Radio communication module.
-- `obc_camera2sd.ino`: Camera capture logic.
-- `obc_sd_card.ino`: SD card management logic.
+## 6. Project Architecture (Hardware Abstraction Layer)
+This firmware uses a professional HAL-based architecture to separate hardware details from mission logic.
+
+- **`config.h`**: **The Map.** Centralized configuration file containing all pin definitions (SPI, CS), mission constants (Frequency, Bitrate), and protocol structures.
+- **`mission_integrated.ino`**: **The Orchestrator.** High-level mission controller that manages the state machine and coordinates between modules without needing to know hardware pin details.
+- **`commu_tx_rx.ino`**: **Communication Module.** Owns the SX1278 radio object and provides a simple interface for uplink commands and downlink packet transmission.
+- **`obc_camera2sd.ino`**: **Camera Module.** Manages the Arducam Mega hardware, handling image capture and raw JPEG extraction from the camera buffer.
+- **`obc_sd_card.ino`**: **Storage Module.** Manages the SD Card via SdFat, providing persistent storage for images and tracking the Mission Image ID across reboots.
+
+## 7. Setup & Deployment
+1. Open `mission_integrated.ino` in the Arduino IDE.
+2. Ensure the other four files (`config.h`, `commu_tx_rx.ino`, `obc_camera2sd.ino`, `obc_sd_card.ino`) are in the same folder.
+3. Verify that the pins in `config.h` match your physical wiring.
+4. Compile and upload to the STM32 OBC.
+

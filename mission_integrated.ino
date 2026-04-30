@@ -1,77 +1,47 @@
-#include <RadioLib.h>
-#include "Arducam_Mega.h"
-#include <SPI.h>
-#include "SdFat.h"
+#include "config.h"
 
-// --- Store-and-Forward System Main Orchestrator ---
+// --- Store-and-Forward System: Main Orchestrator (HAL-based) ---
 
-// Hardware Pin Definitions
-const int CAM_CS = PE_7;
-const int SD_CS = PC9;
-
-// Radio Setup (SX1278)
-SPIClass RADIO_SPI(PA7, PA6, PA5, -1);
-SX1278 radio = new Module(PB6, PA10, PC7, -1, RADIO_SPI);
-
-// SD Card Setup (SdFat)
-#define SPI_DRIVER_SELECT 2
-#define ENABLE_DEDICATED_SPI 1
-SPIClass SD_SPI(PC12, PC11, PC10);
-#define SD_CONFIG SdSpiConfig(SD_CS, DEDICATED_SPI, SD_SCK_MHZ(8), &SD_SPI)
-SdFs sd;
-
-// Camera Setup (Arducam Mega)
-Arducam_Mega myCAM(CAM_CS);
-
-// Global State
+// Shared Mission State
 uint16_t nextImageID = 1;
 
-// --- Packet Protocol (Total 128 bytes) ---
-struct PacketHeader {
-  uint16_t imageID;      // 2 bytes
-  uint16_t packetIdx;    // 2 bytes
-  uint16_t totalPackets;  // 2 bytes
-  uint8_t dataSize;      // 1 byte
-  uint8_t checksum;      // 1 byte
-};
+// Function Prototypes for HAL Modules
+bool storage_init();
+void storage_save_id();
+bool storage_exists(uint16_t id);
+FsFile storage_open_image(uint16_t id);
 
-const int MAX_DATA_SIZE = 120;
-const int HEADER_SIZE = sizeof(PacketHeader);
+bool camera_init();
+bool camera_capture_to_sd(uint16_t id);
 
-// Function Prototypes
+bool comm_init();
+String comm_listen();
+int comm_transmit(uint8_t* data, size_t len);
+void comm_transmit_str(String msg);
+
+// Internal Orchestration Functions
 void processCommand(String cmd);
 void handleCapture();
 void handleRequest(uint16_t id);
 uint8_t calculateChecksum(uint8_t* data, int len);
 
 void setup() {
-  // Serial Debug Setup
   Serial.setTx(PA2);
   Serial.setRx(PA3);
   Serial.begin(115200);
   delay(1000);
-  Serial.println(F("\n--- Store-and-Forward System v2.0 ---"));
+  Serial.println(F("\n--- Store-and-Forward System v2.0 (HAL) ---"));
 
-  // 1. Initialize Storage
-  if (!storage_init()) {
-    Serial.println(F("[ERROR] Storage init failed!"));
-  }
+  // HAL Initialization
+  if (!storage_init()) Serial.println(F("[FATAL] SD Failed"));
+  if (!camera_init())  Serial.println(F("[FATAL] Camera Failed"));
+  if (!comm_init())    Serial.println(F("[FATAL] Radio Failed"));
 
-  // 2. Initialize Camera
-  // Arducam Mega uses the standard SPI bus
-  SPI.setMISO(PB_4);
-  SPI.setMOSI(PB_5);
-  SPI.setSCLK(PB_3);
-  SPI.begin();
-  camera_init();
-
-  // 3. Initialize Communication
-  comm_init();
-
-  Serial.println(F("System Ready. Listening..."));
+  Serial.println(F("System Ready. Listening for Uplink..."));
 }
 
 void loop() {
+  // Listen for commands through the Communication HAL
   String incomingCmd = comm_listen();
   if (incomingCmd.length() > 0) {
     processCommand(incomingCmd);

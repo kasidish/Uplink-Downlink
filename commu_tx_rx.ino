@@ -1,26 +1,22 @@
 #include <RadioLib.h>
+#include "config.h"
 
-// --- Communication Module (Store-and-Forward System) ---
+// --- Communication Module (HAL) ---
 
-// Globals shared across tabs
-// RADIO_SPI and radio are defined in mission_integrated.ino
+// Module owns its hardware resources
+SPIClass RADIO_SPI(RADIO_MOSI, RADIO_MISO, RADIO_SCLK, -1);
+SX1278 radio = new Module(RADIO_NSS, RADIO_DIO0, RADIO_BUSY, -1, RADIO_SPI);
 
 bool comm_init() {
   RADIO_SPI.begin();
-  Serial.print(F("[SX1278] Initializing Radio ... "));
+  Serial.print(F("[HAL] Initializing Radio ... "));
   
-  // Baseline initialization settings
-  int state = radio.beginFSK(435.0);
+  int state = radio.beginFSK(MISSION_FREQ);
   radio.setDataShaping(RADIOLIB_SHAPING_0_5);
   state += radio.setOutputPower(12);
   
-  FSKRate_t fskRate = {
-    .bitRate = 9.6,
-    .freqDev = 4.8,
-  };
-  DataRate_t dataRate = {
-    .fsk = fskRate
-  };
+  FSKRate_t fskRate = { .bitRate = MISSION_BITRATE, .freqDev = 4.8 };
+  DataRate_t dataRate = { .fsk = fskRate };
   radio.setDataRate(dataRate);
   
   uint8_t syncWord[] = { 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF };
@@ -40,7 +36,7 @@ String comm_listen() {
   if (radio.available()) {
     String cmd;
     int state = radio.readString(cmd);
-    radio.startReceive(); // Re-enable receive mode
+    radio.startReceive();
     if (state == RADIOLIB_ERR_NONE) {
       cmd.trim();
       return cmd;
