@@ -3,9 +3,22 @@
 
 #include <Arduino.h>
 
+// These SdFat options must be visible before SdFat is included by modules.
+#ifndef SPI_DRIVER_SELECT
+#define SPI_DRIVER_SELECT 2
+#endif
+#ifndef ENABLE_DEDICATED_SPI
+#define ENABLE_DEDICATED_SPI 1
+#endif
+
 // ==========================================
 // STORE-AND-FORWARD SYSTEM CONFIGURATION
 // ==========================================
+
+// --- Serial Pins ---
+const int SERIAL_TX = PA2;
+const int SERIAL_RX = PA3;
+const uint32_t SERIAL_BAUD = 115200;
 
 // --- SD Card Pins (PC-series) ---
 const int SD_CS   = PC9;
@@ -16,7 +29,7 @@ const int SD_SCLK = PC10;
 // --- Radio Pins (PA/PB/PC-series) ---
 const int RADIO_NSS  = PB6;
 const int RADIO_DIO0 = PA10;
-const int RADIO_BUSY = PC7; // Using PC7 as busy/reset if needed
+const int RADIO_BUSY = PC7;
 const int RADIO_MOSI = PA7;
 const int RADIO_MISO = PA6;
 const int RADIO_SCLK = PA5;
@@ -28,19 +41,27 @@ const int CAM_MISO = PB_4;
 const int CAM_SCLK = PB_3;
 
 // --- Mission Constants ---
-const uint16_t MISSION_BITRATE = 9.6; // kbps
-const float    MISSION_FREQ    = 435.0; // MHz
+const float MISSION_BITRATE_KBPS = 9.6;
+const float MISSION_FREQ_MHZ = 435.0;
+const float MISSION_FREQ_DEV_KHZ = 4.8;
+const int8_t RADIO_OUTPUT_POWER_DBM = 12;
 
-// --- Packet Protocol (Total 128 bytes) ---
+// --- Capture/Downlink Settings ---
+const uint32_t CAMERA_CAPTURE_TIMEOUT_MS = 15000;
+const uint8_t PACKET_DATA_SIZE = 120;
+const uint8_t PACKET_HEADER_SIZE = 8;
+const uint8_t PACKET_TOTAL_SIZE = PACKET_HEADER_SIZE + PACKET_DATA_SIZE;
+const uint8_t DOWNLINK_RETRY_COUNT = 1;
+const uint16_t DOWNLINK_PACKET_DELAY_MS = 40;
+
 struct PacketHeader {
-  uint16_t imageID;      // 2 bytes
-  uint16_t packetIdx;    // 2 bytes
-  uint16_t totalPackets;  // 2 bytes
-  uint8_t dataSize;      // 1 byte
-  uint8_t checksum;      // 1 byte
+  uint16_t imageID;
+  uint16_t packetIdx;
+  uint16_t totalPackets;
+  uint8_t dataSize;
+  uint8_t checksum;
 };
 
-const int MAX_DATA_SIZE = 120;
-const int HEADER_SIZE = sizeof(PacketHeader);
+static_assert(sizeof(PacketHeader) == PACKET_HEADER_SIZE, "PacketHeader must stay 8 bytes");
 
 #endif

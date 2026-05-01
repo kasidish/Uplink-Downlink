@@ -13,7 +13,7 @@ The CubeSat listens for FSK radio packets at 435MHz (9.6kbps).
 - Images are saved as `IMG_#.JPG` on the SD card using the `SdFat` library.
 - A `config.txt` file tracks the `nextImageID` to prevent overwriting after a reboot.
 
-## 4. Packetization Logic (Downlink)
+## 4. Packetization Logic (Downlink) 
 Images are broken into **120-byte data chunks** to ensure high reliability and efficient radio buffer usage.
 
 ### Packet Structure (128 bytes total)
