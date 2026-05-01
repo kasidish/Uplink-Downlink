@@ -48,20 +48,35 @@ const int8_t RADIO_OUTPUT_POWER_DBM = 12;
 
 // --- Capture/Downlink Settings ---
 const uint32_t CAMERA_CAPTURE_TIMEOUT_MS = 15000;
-const uint8_t PACKET_DATA_SIZE = 120;
-const uint8_t PACKET_HEADER_SIZE = 8;
-const uint8_t PACKET_TOTAL_SIZE = PACKET_HEADER_SIZE + PACKET_DATA_SIZE;
+const uint8_t PACKET_TOTAL_SIZE = 128;
+const uint8_t PACKET_HEADER_SIZE = 9;
+const uint8_t PACKET_DATA_SIZE = PACKET_TOTAL_SIZE - PACKET_HEADER_SIZE;
 const uint8_t DOWNLINK_RETRY_COUNT = 1;
 const uint16_t DOWNLINK_PACKET_DELAY_MS = 40;
 
-struct PacketHeader {
+// --- AX.25 UI Frame Settings ---
+const bool USE_AX25_FRAME = false;
+const char AX25_DEST_CALLSIGN[] = "GROUND";
+const uint8_t AX25_DEST_SSID = 0;
+const char AX25_SRC_CALLSIGN[] = "CUBSAT";
+const uint8_t AX25_SRC_SSID = 0;
+const uint8_t AX25_CONTROL_UI = 0x03;
+const uint8_t AX25_PID_NO_LAYER3 = 0xF0;
+const uint8_t AX25_ADDRESS_LEN = 14;
+const uint8_t AX25_HEADER_LEN = AX25_ADDRESS_LEN + 2;
+const uint8_t AX25_FCS_LEN = 2;
+const uint8_t AX25_MAX_FRAME_SIZE = 255;
+const uint8_t AX25_MAX_INFO_SIZE = AX25_MAX_FRAME_SIZE - AX25_HEADER_LEN - AX25_FCS_LEN;
+
+struct __attribute__((packed)) PacketHeader {
   uint16_t imageID;
-  uint16_t packetIdx;
-  uint16_t totalPackets;
+  uint16_t chunkID;
+  uint16_t totalChunks;
+  uint16_t checksum;
   uint8_t dataSize;
-  uint8_t checksum;
 };
 
-static_assert(sizeof(PacketHeader) == PACKET_HEADER_SIZE, "PacketHeader must stay 8 bytes");
+static_assert(sizeof(PacketHeader) == PACKET_HEADER_SIZE, "PacketHeader must stay 9 bytes");
+static_assert(PACKET_TOTAL_SIZE <= AX25_MAX_INFO_SIZE, "Image packet must fit inside AX.25 info field");
 
 #endif

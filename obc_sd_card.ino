@@ -78,3 +78,14 @@ FsFile storage_open_image(uint16_t id) {
   formatImageFilename(id, filename, sizeof(filename));
   return sd.open(filename, O_READ);
 }
+
+bool storage_delete_image(uint16_t id) {
+  char filename[16];
+  formatImageFilename(id, filename, sizeof(filename));
+
+  if (!sd.exists(filename)) {
+    return false;
+  }
+
+  return sd.remove(filename);
+}
